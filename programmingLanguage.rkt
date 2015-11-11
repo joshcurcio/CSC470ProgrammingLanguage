@@ -101,7 +101,12 @@
 ;evaluates an app expression whose car is an operator
 (define eval-op-exp
   (lambda (appExp env)
-    appExp))
+    (cond
+      ((eq? (cadar appExp) '+) (+ (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
+      ((eq? (cadar appExp) '-) (- (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
+      ((eq? (cadar appExp) '*) (* (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
+      ((eq? (cadar appExp) '/) (/ (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
+      (else #F))))
     
 (define eval-exp
   (lambda (lce env)
@@ -122,6 +127,7 @@
                                  (eval-exp x env))) (cddr lce)) env)))
          ((eq? (list-ref (list-ref lce 1) 0) 'op-exp)
           ;first element of app-exp is a op-exp
+          (eval-op-exp (cdr lce) env))
          (else
           ;first element of app-exp is a var-exp
            (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -145,4 +151,4 @@
 
 ;Pass the above to apply-env to make sure it comes out
 (parse-exp anExp)
-;(run-program (parse-exp anExp))
+(run-program (parse-exp anExp))

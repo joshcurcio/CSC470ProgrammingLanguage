@@ -2,7 +2,7 @@
 ;; about the language level of this file in a form that our tools can easily process.
 #reader(lib "htdp-advanced-reader.ss" "lang")((modname programmingLanguage) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 ;Global Variables
-(define listOfOperators '(+ - * /))
+(define listOfOperators '(+ - * / %))
 
 ;generic helper functions
 ;returns true if val is found in lst
@@ -109,6 +109,7 @@
         ((eq? theOp '-) (- op1 op2))
         ((eq? theOp '*) (* op1 op2))
         ((eq? theOp '/) (/ op1 op2))
+        ((eq? theOp '%) (modulo op1 op2))
         (else #F)))))
     
 (define eval-exp

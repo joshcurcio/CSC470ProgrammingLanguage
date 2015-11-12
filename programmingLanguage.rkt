@@ -101,12 +101,15 @@
 ;evaluates an app expression whose car is an operator
 (define eval-op-exp
   (lambda (appExp env)
-    (cond
-      ((eq? (cadar appExp) '+) (+ (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
-      ((eq? (cadar appExp) '-) (- (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
-      ((eq? (cadar appExp) '*) (* (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
-      ((eq? (cadar appExp) '/) (/ (eval-exp (cadr appExp) env)(eval-exp (caddr appExp) env)))
-      (else #F))))
+    (let ((op1 (eval-exp (cadr appExp) env))
+          (op2 (eval-exp (caddr appExp) env))
+          (theOp (cadar appExp)))
+      (cond
+        ((eq? theOp '+) (+ op1 op2))
+        ((eq? theOp '-) (- op1 op2))
+        ((eq? theOp '*) (* op1 op2))
+        ((eq? theOp '/) (/ op1 op2))
+        (else #F)))))
     
 (define eval-exp
   (lambda (lce env)

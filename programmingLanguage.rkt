@@ -3,6 +3,11 @@
 #reader(lib "htdp-advanced-reader.ss" "lang")((modname programmingLanguage) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 ;Global Variables
 (define listOfOperators '(+ - * / %))
+(define listOfArithemeticBooleanOperatores '(< > <= >= == !=))
+(define listOfLogicalBooleanOperators '(&& ||)) ; not added to language yet
+(define listOfReservedWords '(if let while))
+
+
 
 ;generic helper functions
 ;returns true if val is found in lst
@@ -84,14 +89,30 @@
   (lambda (s)
     (contains s listOfOperators)))
 
+(define reservedWord?
+  (lambda (s)
+    (contains s listOfReservedWords)))
+
+(define arithemetic-boolean-op?
+  (lambda (s)
+    (contains s listOfArithemeticBooleanOperatores)))
+
 ;Core Parser Functions
 (define parse-exp
   (lambda (lcExp)
     (cond
+      ((boolean? lcExp) (list 'bool-exp lcExp))
       ((number? lcExp) (list 'lit-exp lcExp))
-      ((symbol? lcExp) (if (op? lcExp)
-                           (list 'op-exp lcExp)
-                           (list 'var-exp lcExp)))
+      ((symbol? lcExp)
+       (cond
+         ((op? lcExp) (list 'op-exp lcExp))
+         ((arithemetic-boolean-op? lcExp) (list 'bool-arith-op lcExp))
+         ((reservedWord? lcExp)
+          (cond
+            ((eq? lcExp 'if) (list 'if-exp))
+            ((eq? lcExp 'let) (list 'let-exp))
+            ((eq? lcExp 'while) (list 'while-exp))))
+       (else (list 'var-exp lcExp))))                 
       ((eq? (car lcExp) 'lambda)
        (list 'lambda-exp
              (cadr lcExp)
@@ -111,10 +132,41 @@
         ((eq? theOp '/) (/ op1 op2))
         ((eq? theOp '%) (modulo op1 op2))
         (else #F)))))
+
+;evaluates an app expression whose car is an operator if-exp
+(define eval-if-exp
+  (lambda (appExp env)
+    (let ((boolExp (eval-exp (car appExp) env))
+          (trueExp (eval-exp (cadr appExp) env))
+          (falseExp (eval-exp (caddr appExp) env)))
+      (if boolExp trueExp falseExp))))
+
+(define eval-let-exp
+  (lambda (appExp env)
+    (eval-exp (list-ref appExp 1) (extend-env
+                            (extend-scope (list-ref (list-ref (list-ref (list-ref appExp 0) 1) 1) 1) (list-ref (list-ref (list-ref (list-ref appExp 0) 1) 2) 1)(empty-scope))
+                            (extend-env
+                             (extend-scope (list-ref (list-ref (list-ref (list-ref appExp 0) 2) 1) 1) (list-ref (list-ref (list-ref (list-ref appExp 0) 2) 2) 1)(empty-scope))
+                             env)))))
+
+;evaluates an app expression whose car is an operator bool-arith-op-exp
+(define eval-bool-arith-op-exp
+  (lambda (appExp env)
+    (let ((op1 (eval-exp (cadr appExp) env))
+          (op2 (eval-exp (caddr appExp) env))
+          (theOp (cadar appExp)))
+      (cond
+        ((eq? theOp '<) (< op1 op2))
+        ((eq? theOp '<=) (<= op1 op2))
+        ((eq? theOp '>) (> op1 op2))
+        ((eq? theOp '>=) (>= op1 op2))
+        ((eq? theOp '==) (= op1 op2))
+        ((eq? theOp '!=) (not (= op1 op2)))))))
     
 (define eval-exp
   (lambda (lce env)
     (cond
+      ((eq? (car lce) 'bool-exp) (cadr lce))
       ((eq? (car lce) 'lit-exp) (cadr lce))
       ((eq? (car lce) 'var-exp) (apply-env (cadr lce) env))
       ((eq? (car lce) 'lambda-exp) (eval-exp (caddr lce) env))
@@ -132,6 +184,15 @@
          ((eq? (list-ref (list-ref lce 1) 0) 'op-exp)
           ;first element of app-exp is a op-exp
           (eval-op-exp (cdr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'if-exp)
+          ;first element of app-exp is a if-exp
+          (eval-if-exp (cddr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
+          ;first element of app-exp is a let-exp
+          (eval-let-exp (cddr lce) env))
+         ((eq? (list-ref (list-ref lce 1) 0) 'bool-arith-op)
+          ;first element of app-exp is a bool-arith-op-exp
+          (eval-bool-arith-op-exp (cddr lce) env))
          (else
           ;first element of app-exp is a var-exp
            (let ((theLambda (eval-exp (list-ref lce 1) env))
@@ -142,15 +203,13 @@
              (eval-exp theLambda (extend-env-4-lambda (list-ref theLambda 1)
                                                       theInputs
                                                       env)))))))))
-           
-
 
 (define run-program
   (lambda (lce)
     (eval-exp lce (empty-env))))
 
 
-(define anExp '((lambda (a b c) (a b c)) (lambda (x y) (+ x y)) 5 6))
+(define anExp '(let ((a 5) (b 6)) (+ a b)))
 ;(define anExp '(lambda (a b) (a b)))
 
 ;Pass the above to apply-env to make sure it comes out

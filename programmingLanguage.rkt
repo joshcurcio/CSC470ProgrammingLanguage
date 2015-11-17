@@ -3,7 +3,7 @@
 #reader(lib "htdp-advanced-reader.ss" "lang")((modname programmingLanguage) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 ;Global Variables
 (define listOfOperators '(+ - * / %))
-(define listOfArithemeticBooleanOperatores '(< > <= >= == !=))
+(define listOfArithemeticBooleanOperators '(< > <= >= == !=))
 (define listOfLogicalBooleanOperators '(&& ||)) ; not added to language yet
 (define listOfReservedWords '(if let while))
 
@@ -64,6 +64,7 @@
      (extend-env-4-lambda-helper lovars lovals (empty-scope))
      env)))
 
+    
 
 ;Constructors related to the LCE types
 (define lit-exp
@@ -95,7 +96,7 @@
 
 (define arithemetic-boolean-op?
   (lambda (s)
-    (contains s listOfArithemeticBooleanOperatores)))
+    (contains s listOfArithemeticBooleanOperators)))
 
 ;Core Parser Functions
 (define parse-exp
@@ -141,13 +142,17 @@
           (falseExp (eval-exp (caddr appExp) env)))
       (if boolExp trueExp falseExp))))
 
-(define eval-let-exp
+(define get-lovar
+  (lambda (appExp)
+    (list-ref (list-ref appExp 1) 1)))
+
+(define get-loval
+  (lambda (appExp)
+    (list-ref (list-ref appExp 2) 1)))
+    
+(define extend-let-env
   (lambda (appExp env)
-    (eval-exp (list-ref appExp 1) (extend-env
-                            (extend-scope (list-ref (list-ref (list-ref (list-ref appExp 0) 1) 1) 1) (list-ref (list-ref (list-ref (list-ref appExp 0) 1) 2) 1)(empty-scope))
-                            (extend-env
-                             (extend-scope (list-ref (list-ref (list-ref (list-ref appExp 0) 2) 1) 1) (list-ref (list-ref (list-ref (list-ref appExp 0) 2) 2) 1)(empty-scope))
-                             env)))))
+    (extend-env-4-lambda (map get-lovar appExp) (map get-loval appExp) env)))
 
 ;evaluates an app expression whose car is an operator bool-arith-op-exp
 (define eval-bool-arith-op-exp
@@ -189,7 +194,7 @@
           (eval-if-exp (cddr lce) env))
          ((eq? (list-ref (list-ref lce 1) 0) 'let-exp)
           ;first element of app-exp is a let-exp
-          (eval-let-exp (cddr lce) env))
+           (eval-exp (list-ref lce 3) (extend-let-env (cdr (list-ref lce 2)) env)))
          ((eq? (list-ref (list-ref lce 1) 0) 'bool-arith-op)
           ;first element of app-exp is a bool-arith-op-exp
           (eval-bool-arith-op-exp (cddr lce) env))
@@ -209,7 +214,7 @@
     (eval-exp lce (empty-env))))
 
 
-(define anExp '(let ((a 5) (b 6)) (+ a b)))
+(define anExp '(let ((a 5) (b 5)) (* a b)))
 ;(define anExp '(lambda (a b) (a b)))
 
 ;Pass the above to apply-env to make sure it comes out

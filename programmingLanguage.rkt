@@ -57,6 +57,23 @@
                              (extend-scope (car lovars) (car lovals) scope)))
       (else scope))))
 
+(define update-scope
+  (lambda (var val scope)
+    (map (lambda (lst)
+           (if (eq? (car lst) var)
+               (list var val)
+               lst))
+         scope)))
+
+(define update-env
+  (lambda (var val env)
+    (cond
+      ((null? env) #F)
+      (else (let ((currScope (car env)))
+              (if (not (eqv? (apply-scope var currScope) #f))
+                  (cons (update-scope var val currScope) (cdr env))
+                  (cons currScope (update-env var val (cdr env)))))))))
+
 (define extend-env-4-lambda
   (lambda (lovars lovals env)
     (extend-env
@@ -183,24 +200,19 @@
         (list (eval-exp (cadr appExp) env) (eval-while-exp appExp env))
         #F))))
 
-(define block-exp
-  (lambda (appExp env)
-    (if (null? appExp)
+(define eval-block-exp
+  (lambda (listOfExprs env)
+    (if (null? listOfExprs)
         '()
-        (eval-exp appExp env))))
+        (let ((result (eval-exp (car listOfExprs) env)))
+          (if (list? result)
+              (eval-block-exp (cdr listOfExprs) result)
+              (cons result (eval-block-exp (cdr listOfExprs) env)))))))
+
 
   
 ;(define anExp '(let ((a 5)) (while (!= a 0) (block (set a (- a 1))))))
-  
-(define set-exp 
-  (lambda (appExp env)
-    (let ((boolInt (car (cdr (car (cdr appExp))))))
-          ;(envVar  (caaar env)))      
-      (map (lambda (x)
-             (if (eq? (caar x) boolInt)
-                 (extend-env-4-lambda boolInt (list (eval-exp (cddr appExp) env)) (empty-scope))
-                 x))
-           env))))
+
     
 (define eval-exp
   (lambda (lce env)
@@ -231,10 +243,14 @@
           (eval-if-exp (cddr lce) env))
          ((eq? (list-ref (list-ref lce 1) 0) 'set-exp)
           ;first element of app-exp is an set-exp
-          (set-exp (cdr lce) env))
+          (update-env
+           (list-ref (list-ref lce 2) 1)
+           (eval-exp (list-ref lce 3) env)
+           env))
          ((eq? (list-ref (list-ref lce 1) 0) 'block-exp)
           ;first element of app-exp is an block-exp
-          (block-exp (cdr lce) env))
+          (let ((listOfExprs (cdr (list-ref lce 2))))
+            (eval-block-exp listOfExprs env)))
          ((eq? (list-ref (list-ref lce 1) 0) 'while-exp)
           ;first element of app-exp is an while-exp
           (eval-while-exp (cddr lce) env))
@@ -259,7 +275,7 @@
     (eval-exp lce (empty-env))))
 
 
-(define anExp '(let ((a 5) (b 4) (c 5)) (while (!= a 0) (block (set a (- a 1))))))
+(define anExp '(let ((a 5) (b 4) (c 5)) (while (!= a 0) (block (a (set a (- a 1)))))))
 ;(define anExp '(let ((i 0)) (while (< i 5) (block i (set i (+ i 1))))))
 ;(define anExp '(let ((fact (lambda (x) (if (== x 1) 1 (* x (fact (- x 1))))))) (fact 4))) 
 ;(define anExp '((lambda (a b) (a b)) (lambda (x) (* x 2)) 5))
